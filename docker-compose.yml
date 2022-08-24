@@ -1,0 +1,22 @@
+version: '3'
+services:
+  mysql-db:
+    container_name: mysql-db
+    image: mysql:debian
+    restart: unless-stopped
+    ports:
+      # open port 3307 for Host and 3306 for other services here:
+      # - locally running application or DBMS must connect via port 3307
+      # - services running in the same Docker network must connect via port 3306
+      - '3307:3306' 
+    environment:
+      - MYSQL_ROOT_PASSWORD=springdatajpa
+      - TZ=Europe/Helsinki
+    volumes:
+      # MySQL Docker image can run initialization scripts: https://dev.mysql.com/doc/refman/8.0/en/docker-mysql-more-topics.html#docker-additional-init
+      # Scripts must be .sql or .sh and they need to be placed into /docker-entrypoint-initdb.d/
+      # Scripts execution order is done alphabetically!
+      # :ro is to tell Docker to attach the volume as "read-only"!
+      - ./data:/docker-entrypoint-initdb.d/:ro
+    command: ['mysqld', '--character-set-server=utf8', '--collation-server=utf8_swedish_ci']
+    
