@@ -1,133 +1,45 @@
-# Part 1: Using JPA repositories
+# Part 2: Query DSL, aka Derived queries.
 
-**Spring Data JPA** significantly simplifies the data source interaction work for developers.
-It provides `org.springframework.data.jpa.repository.JpaRepository`-interface, that has useful methods, like `findAll()`, and extends `PagingAndSortingRepository`, which itself extends `CrudRepository`.
-To benefit from the repository, developer must create an **entity repository interface** that will **extend** `JpaRepository`, generics of which need to know the **entity class name** and **primary key type**. There is no need for any further configuration; repositories that extend JpaRepository will be automatically detected by Spring Data JPA and added to the context, so that they could be injected and used where needed 😀 
+**Query DSL** or **Derived queries** significantly simplify the process of getting and interacting with data. Using a combination of special **subject** and **predicate** keywords in methods declarations, developers can perform complex queries without getting concerned about the implementation; `Spring Data JPA` will do that automatically.
 
-### *NB! in this session we will address only how to read (obtain) data from the data source*
+## Finding by ONE parameter value
 
-## 1: Repository
+For instance, let's try to get all `Order` records, by a specific value of its `status` field, for instance **Disputed**.
+The corresponding SQL query will be the following:
+```SQL
+SELECT * FROM orders WHERE status = 'Disputed'
+```
 
-1) Create a new package in the `backend` project called `repository`.
-2) Inside the package create an interface `OrderRepository`:
+To make a similar query with `Spring Data JPA` open the `OrderRepository` and declare there a new method:
 ```java
 public interface OrderRepository extends JpaRepository<Order, Long> {
-
+    List<Order> findByStatus(String status); 
 }
 ```
-- `JpaRepository` is `org.springframework.data.jpa.repository.JpaRepository`;
-- `Order` is `fi.tietoevry.backend.model.Order`;
-- `Long` is used because `@Id` field of `Order`-entity class is of type `Long`;
+And that's it 😀 The combination of **subject** keyword `findBy` and `Status` (**predicate** field of `Order`), plus the parameter submitted to the method will tell `Spring Data JPA` to make an implementation of the method that will correspond to the SQL query you saw before.
 
-And that's it! Your simple `JpaRepository` for `Order`-entity is ready to be injected and used. You can either create a `Controller`-class or write tests to interact with your repository.
+You can then either add a new mapping that will use this method in `OrderController` or write a new test:
 
-## 2: Controller
-1) Create a new package `controller`
-2) Inside the package create a class `OrderController`:
+### Controller
 ```java
 @RestController
 @RequestMapping("/orders")
 public class OrderController {
-    
+
     @Autowired
     private OrderRepository orderRepository;
+
+    ...
+
+    @GetMapping("/status/{status}")
+    List<Order> getOrdersByStatus(@PathVariable("status") String status) {
+        return orderRepository.findByStatus(status);
+    }
 }
 ```
-- `@RestController` is `org.springframework.web.bind.annotation.RestController`; 
-- `@RequestMapping` is `org.springframework.web.bind.annotation.RequestMapping`. The value **/orders** sets the root for all requests that will be handled by this controller specifically;
-- `OrderRepository` is the newly-created `fi.tietoevry.backend.repository.OrderRepository`;
-- `@Autowired` is `org.springframework.beans.factory.annotation.Autowired` and is needed to inject our `OrderRepository` for use in `OrderController`;
+Requests to **/orders/status/Disputed** or **/orders/status/disputed** will return a list of `Order` records that have `status` equal to value **Disputed**.
 
-### 2.1: Getting all records 
-`JpaRepository` has a simple method for retreiving all data at once - `findAll()`.
-Add the following method to your `OrderController`:
-```java
-@GetMapping
-List<Order> getAllOrders() {
-    return orderRepository.findAll();
-}
-```
-- `@GetMapping` is `org.springframework.web.bind.annotation.GetMapping`. Since no value was supplied, all **HTTP GET** requests to **/orders** will be handled by this mapping-method;
-- `List` is `java.util.List`;
-- `Order` is `fi.tietoevry.backend.model.Order`;
-
-Now, all **HTTP GET** requests to **/orders** will return a list of all order records stored in the `orders`-table.
-
-### 2.2: Getting a record by ID
-For this purpose either `JpaRepository.getReferenceById(id)` or `CrudRepository.findById(id)` can be used:
-
-#### 2.2.1 getReferenceById(id)
-```java
-@GetMapping("/reference/{id}")
-Order getOrderReferenceById(@PathVariable("id") Long orderId) {
-    return orderRepository.getReferenceById(orderId);
-}
-```
-`getReferenceById(id)` will return a **proxy reference** to the found order record! To serialize the reference, we need to be either unproxy it using `org.hibernate.Hibernate.unproxy(T proxy, Class<T> entityClass)`:
-```java
-@GetMapping("/reference/{id}")
-Order getOrderReferenceById(@PathVariable("id") Long orderId) {
-    return Hibernate.unproxy(orderRepository.getReferenceById(orderId), Order.class);
-}
-```
-**OR** 
-
-`Order`-entity class can get an additional jackson annotation `com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})`:
-```java
-@Entity
-@Table(name = "orders")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class Order {
-  ...
-}
-```
-This approach was used in the project.
-
-Another note is that the newly-created `getOrderReferenceById(@PathVariable("id") Long orderId)` method will listen to **HTTP GET /orders/reference/{id}** requests, e.g. **/orders/reference/10100**.
-
-#### 2.2.2 findById(id)
-`findById(id)` will return an `java.util.Optional`:
-```java
-@GetMapping("/{id}")
-Order findOrderById(@PathVariable("id") Long orderId) {
-    return orderRepository.findById(orderId).get();
-}
-```
-
-### 2.1: Getting all records sorted
-The query response can be returned sorted. For that developers can can use `findAll(Sort sort)` method.
-`Sort`-instance through different `by()` methods of `org.springframework.data.domain.Sort`. Let's get all orders sorted in a reverse order by their primary keys - **orderNumber**:
-```java
-@GetMapping("/sorted-desc")
-List<Order> getAllOrdersSortedDesc() {
-    return orderRepository.findAll(Sort.by(Direction.DESC, "orderNumber"));
-}
-```
-Where `Direction` comes from `org.springframework.data.domain.Sort.Direction`;
-
-**Experiment with other `by()` methods and different fields! 😉**
-
-### 2.2: Getting records in pages
-Getting all records can be often inpractical. Instead it would be more convenient to obtain only part of all records and get the next part if needed. For such reason `org.springframework.data.domain.Page` interface exists.
-As it was mentioned earlier, `org.springframework.data.jpa.repository.JpaRepository` extends `PagingAndSortingRepository` that gives the conveniens of getting paged data through `findAll(Pageable pageable)` method. Here `Pageable` is an interface, that can be implemented by `org.springframework.data.domain.PageRequest` (through `AbstractPageRequest`). `org.springframework.data.domain.PageRequest` has several useful static `of()` methods to create an instance of it. 
-Let's use one of them that specifies what particular page we want to retrieve and how many records a page should contain:
-```java
-@GetMapping("/paged")
-Page<Order> getOrderPage(
-        @RequestParam(name = "pageNumber", required = false, defaultValue = "0") Integer pageNumber,
-        @RequestParam(name = "perPage", required = false, defaultValue = "10") Integer perPage
-) {
-    return orderRepository.findAll(PageRequest.of(pageNumber, perPage));
-}
-```
-- `Page` is `org.springframework.data.domain.Page`;
-- `@RequestParam` is `org.springframework.web.bind.annotation.RequestParam` that is needed to specify **query paramameters**. If you make a request */orders/paged?pageNumber=3&perPage=20*, then the app will be instructed to get you the 4th page and it should contain maximum 20 records. If the **query/request parameters** are not given, then they will be defaulted to 0 and 10 in this example. 
-
-**Data in pages can also be sorted! Experiment with other `PageRequest.of()` methods that also specify sorting! 😉**
-
-## 3: Test
-For interaction via tests, create `repository` package, but instead of *src/main/java/* go to *src/test/java*.
-Then create there `OrderRepositoryTest`:
+### Test
 ```java
 @SpringBootTest
 public class OrderRepositoryTest {
@@ -135,23 +47,189 @@ public class OrderRepositoryTest {
     @Autowired
     private OrderRepository orderRepository;
 
-    @Test
-    public void shouldGetOrderById() {
-        Long id = 10100L;
-        Order orderReference = orderRepository.getReferenceById(id);
-        assertEquals(orderReference.getOrderNumber(), id);
-    }
+    ...
 
     @Test
-    public void shouldGetAllOrders() {
-        List<Order> orders = orderRepository.findAll();
-        assertTrue(orders.size() > 0);
+    public void shouldGetDisputedOrders() {
+        String statusFilter = "disputed";
+        List<Order> disputedOrders = orderRepository.findByStatus(statusFilter);
+        disputedOrders.forEach(order -> {
+            assertEquals(statusFilter, order.getStatus().toLowerCase());
+        });
     }
 }
-```  
-- `@SpringBootTest` is `org.springframework.boot.test.context.SpringBootTest`;
-- `@Test` is `org.junit.jupiter.api.Test`;
-- assertion methods are obtained from `org.junit.jupiter.api.Assertions`;
+```
 
-## Checkout branch **part-1-complete** to see the completed files for `Order`-entity
-## Try practicing with other entities, like `Customer`, `Employees`, `Products`
+## Finding by MORE THAN ONE parameter value
+
+We were able to filter finding `Order` records by a given `status`. But what if we need filter not by one status value; we could be interested in orders that were either **Shipped** or **Disputed**.
+
+For such logic a SQL query would look like this:
+```SQL
+SELECT * FROM orders WHERE status = 'Disputed' OR status = 'Shipped';
+```
+
+`Spring Data JPA Derived queries` includes a keyword for that - `OR`:
+ ```java
+public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    ...
+
+    List<Order> findByStatusOrStatus(String statusOne, String statusTwo);
+}
+```
+
+Of course if the number of `status` values for filtering `Order` records would increase further, then using `OR` for each value would not be efficient. **SQL** has `IN` for a range filtering:
+
+```SQL
+SELECT * FROM orders WHERE status IN ('Disputed', 'Shipped');
+```
+Likewise, there is such keyword in `Spring Data JPA Derived queries`:
+ ```java
+public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    ...
+
+    List<Order> findByStatusIn(String... statuses);
+}
+```
+Important note about the type of the supplied argument with a range of values:
+- it can be an `array` (or **varargs** as used in the example - `String...`);
+- or it can be an `Iterable<String>` - `List<Order> findByStatusIn(Iterable<String> statuses)`;
+
+## Parameter from a RELATED ENTITY (table)
+
+Table `orders` has a relation to `customers` table through **foreign key** `orders_ibfk_1` - `orders.customerNumber` is `customers.customerNumber`.
+It would be useful to obtain `order` records that are linked to a specific `customer`, and though we can filter by `orders.customerNumber`, it would be easier if we could supply the `customers.customerName` as a filtering parameter. `Derived queries` support that!
+
+First of all, make sure that you have specified relations between your entities! This has been done already in the models of the project:
+```java
+@Entity
+@Table(name = "orders")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+public class Order {
+    
+    ...
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customerNumber")
+    @JsonIgnore
+    private Customer customer;
+}
+```
+
+Then, we can chain the property of the related entity:
+```java
+public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    ...
+
+    List<Order> findByCustomerCustomerName(String customerName);
+}
+```
+So, `Order`-entity has a field `customer`, which is actually a joined `Customer`-entity. That entity has field `customerName`. That is why, the chain of properties in the declaration went like this: `findBy` + `Customer` (i.e. `Order.customer`) + `CustomerName` (i.e. `Customer.customerName`)!
+
+If you are interested in how a respective SQL query would look like, then here it is:
+```SQL
+SELECT orders.orderNumber, orders.orderDate, orders.requiredDate, orders.shippedDate, orders.status, orders.comments, orders.customerNumber FROM orders
+JOIN customers ON (customers.customerNumber = orders.customerNumber)
+WHERE customers.customerName = 'Euro+ Shopping Channel';
+```
+
+A good example can be a derived query that filters by both `status` and `customerName`:
+```java
+public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    ...
+
+    List<Order> findByStatusInAndCustomerCustomerName(Collection<String> statuses, String customerName);
+}
+```
+Pay attention that in this example **varargs** were not used, so that parameter `customerName` would actually be treated as part of them. Also, you can use `String[]` instead of a `Collection`. However, if you still wish to use  **varargs**, then modify your method declaration like this:
+```java
+public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    ...
+
+    List<Order> findByCustomerCustomerNameAndStatusIn(String customerName, String... statuses);
+}
+```
+
+Notably, the condition for filtering both customer name and statuses is ensured by `And` keyword!
+
+## PAGING in Derived queries
+
+From the previous part, it was shown how to paginate the result; well, `Derived queries` support that as well. To paginate your results, you need specify in the methods declaration that it returns a `Page` and supply a `Pageable` argument:
+```java
+public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    ...
+    
+    Page<Order> findByStatusIn(String[] statuses, Pageable page);
+    Page<Order> findByStatusInAndCustomerCustomerName(Collection<String> statuses, String customerName, Pageable page);
+}
+```
+- `Page` and `Pageable` are from `org.springframework.data.domain` package;
+
+Pay attention that naming of the methods does not need to be changed.
+
+## Other keywords
+
+### Subject keywords
+
+`findBy` is not the only **subject** keyword in `Derived queries`. According to the [documentation](https://docs.spring.io/spring-data/jpa/docs/current/reference/html/#appendix.query.method.subject) of `Spring Data JPA` there are the following **subjects**:
+ 1. `find…By`, `read…By`, `get…By`, `query…By`, `search…By`, `stream…By` - for READing data, where `read…By` and `stream…By` will return `Stream` of your entity result.
+ 2. `exists…By` - checks if records satisfying your requirements actually exist; returns `bolean`.
+ 3. `count…By` - equivalent of `COUNT()` in **SQL** and returns `long`.
+ 4. `delete…By`, `remove…By` - to perform a DELETE operation. Normally, they return `void`, but `delete…By` can return `long` - number of rows deleted.
+
+Pay attention to `…` - those dots mean that you can either:
+- skip them completely, like we used `findByStatus`;
+- use filler words for better meaning but no actual effect on logic - `findOrdersBy`;
+- use other special **subject** keywords `First`, `Top`, and `Distinct` (more detailed info about them below);
+
+`…First<number>…` and `…Top<number>…` - according to the [documentation](https://docs.spring.io/spring-data/jpa/docs/current/reference/html/#appendix.query.method.subject): **limit the query results to the first <number> of results. This keyword can occur in any place of the subject between `find` (and the other keywords) and `by`**.
+
+If you use these **subject** keywords without a number, like `findTopBy` or `findFirstBy` then the result type would be the `Entity`-class of your `Repository`. However, if you provide `number`, then the result will be an `Iterable` (remember that `List` inherits from `Iterable`):
+```java
+public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    Order findTopByStatus(String status);
+    Order findFirstByStatus(String status);
+
+    List<Order> findTop5ByStatus(String status);
+    List<Order> findFirst10ByStatus(String status);
+
+}
+```
+
+`…Distinct…` - equivalent of `DISTINCT` in **SQL**; [documentation](https://docs.spring.io/spring-data/jpa/docs/current/reference/html/#appendix.query.method.subject) tells the following: **Use a distinct query to return only unique results. Consult the store-specific documentation whether that feature is supported. This keyword can occur in any place of the subject between `find` (and the other keywords) and `by`**.
+
+### Streaming results
+
+As it was mentioned before, `read…By` and `stream…By` will return `Stream`. However, there is another way to get `Stream` - you can append your method declaration with `AndStream` to get the streamed result:
+```java
+public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    Stream<Order> findByStatusAndStream(String status);
+
+}
+```
+[Documentation about streaming](https://docs.spring.io/spring-data/jpa/docs/current/reference/html/#repositories.query-streaming)
+
+### Predicate keywords
+
+In this part we got introduced to `In`, `And`, and `Or`, but there are more keywords: `LessThan`, `Containing`, `Between`, etc.
+
+Mentioning them all here would be a tedious work 😅
+
+Instead I will provide you with links to the documentation pages 😬:
+1. **Table 3** with sample methods and respective **JPQL** snippets - [link to that section](https://docs.spring.io/spring-data/jpa/docs/current/reference/html/#jpa.query-methods.query-creation);
+2. **Table 9** and **Table 10** about keywords' logical implication and additional desctiption - [link to that section](https://docs.spring.io/spring-data/jpa/docs/current/reference/html/#jpa.query-methods.query-creation);
+
+
+### **And that is all, folks, for the second part of this session! 😀**
+### **As usual, you can 👇**
+## checkout branch **part-2-complete** to see the completed work
+
+**And you are highly encouraged to experiment with other entities and keywords using `Derived queries`!**
