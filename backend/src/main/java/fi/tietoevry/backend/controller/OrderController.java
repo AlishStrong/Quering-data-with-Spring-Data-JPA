@@ -50,4 +50,34 @@ public class OrderController {
     ) {
         return orderRepository.findAll(PageRequest.of(pageNumber, perPage));
     }
+
+    @GetMapping("/status/{status}")
+    List<Order> getOrdersByStatus(@PathVariable("status") String status) {
+        return orderRepository.findByStatus(status);
+    }
+
+    /**
+     * Example: http://localhost:8080/orders/statuses/paged?statuses=disputed,shipped&pageNumber=1&perPage=20
+     */
+    @GetMapping("/statuses/paged")
+    Page<Order> getOrdersByStatusesPaged(
+      @RequestParam(name = "statuses", required = true) String[] statuses,
+      @RequestParam(name = "pageNumber", required = false, defaultValue = "0") Integer pageNumber,
+      @RequestParam(name = "perPage", required = false, defaultValue = "10") Integer perPage
+    ) {
+      return orderRepository.findByStatusIn(statuses, PageRequest.of(pageNumber, perPage));
+    }
+
+    /**
+     * Example: http://localhost:8080/orders/statuses/customer/paged?statuses=disputed,shipped&customer=Enaco%20Distributors&pageNumber=1&perPage=20
+     */
+    @GetMapping("/statuses/customer/paged")
+    Page<Order> getOrdersByCustomerNameAndStatusesPaged(
+      @RequestParam(name = "customer", required = true) String customer,
+      @RequestParam(name = "statuses", required = true) String[] statuses,
+      @RequestParam(name = "pageNumber", required = false, defaultValue = "0") Integer pageNumber,
+      @RequestParam(name = "perPage", required = false, defaultValue = "10") Integer perPage
+    ) {
+      return orderRepository.findByStatusInAndCustomerCustomerName(statuses, customer, PageRequest.of(pageNumber, perPage));
+    }
 }

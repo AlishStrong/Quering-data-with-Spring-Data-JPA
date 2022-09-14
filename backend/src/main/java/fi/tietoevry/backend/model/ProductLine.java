@@ -1,7 +1,5 @@
 package fi.tietoevry.backend.model;
 
-import java.util.Arrays;
-
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
