@@ -10,10 +10,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import fi.tietoevry.backend.model.Order;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
-    
+
     /**
      * Gets all orders whose status is equal to the supplied value
-     * 
+     *
      * @param status  status string value that you are interested
      * @return        List<Order> with statuses equal to the supplied value
      */
@@ -21,8 +21,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * Gets all orders whose status is either equal to the value of statusOne or statusTwo
-     * 
-     * @param statusOne   first status value 
+     *
+     * @param statusOne   first status value
      * @param statusTwo   second status value
      * @return            List<Order> with statuses equal to either statusOne or statusTwo
      */
@@ -30,7 +30,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * Gets all orders whose status is either of the supplied status values
-     * 
+     *
      * @param statuses   comma-delimited string values of statuses
      * @return           List<Order> with statuses found in the supplied comma-delimited string values
      */
@@ -38,16 +38,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * Finds and returns all orders, whose customer company name is equal to the supplied parameter
-     * 
+     *
      * @param customerName  string value of the customer company name
      * @return              List<Order> related to the customer company
      */
     List<Order> findByCustomerCustomerName(String customerName);
 
     /**
-     * Gets all orders, whose status value belongs to the supplied collection of statuses 
+     * Gets all orders, whose status value belongs to the supplied collection of statuses
      * and whose customer company name is equal to the supplied customerName parameter
-     * 
+     *
      * @param statuses      a collection of string values that represent statuses of your interest
      * @param customerName  string value of the customer company name
      * @return              List<Order> related to the customer company
@@ -55,9 +55,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByStatusInAndCustomerCustomerName(Collection<String> statuses, String customerName);
 
     /**
-     * Gets all orders, whose customer company name is equal to the supplied customerName parameter 
+     * Gets all orders, whose customer company name is equal to the supplied customerName parameter
      * and whose status is either of the supplied status values
-     * 
+     *
      * @param customerName  string value of the customer company name
      * @param statuses      comma-delimited string values of statuses
      * @return              List<Order> related to the customer company and with statuses found in the supplied comma-delimited string values
@@ -66,7 +66,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * Gets orders in a Page whose status is either of the supplied status values
-     * 
+     *
      * @param statuses   array of status values
      * @param page       Pageable object with information about the page number, elements per page and sorting
      * @return           Page<Order> with statuses found in the supplied comma-delimited string values
@@ -75,8 +75,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * Gets orders in a Page whose status is either of the supplied status values
-     * and whose customer company name is equal to the supplied customerName parameter 
-     * 
+     * and whose customer company name is equal to the supplied customerName parameter
+     *
      * @param statuses      array of status values
      * @param customerName  string value of the customer company name
      * @param page          Pageable object with information about the page number, elements per page and sorting
@@ -86,9 +86,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * Finds and returns the FIRST order record whose status equals to the supplied value
-     * 
+     *
      * The default order is based on primary key (Order.orderNumber) in ascending order!
-     * 
+     *
      * @param status  status value that order must have
      * @return        Order object of the found entity
      */
@@ -96,9 +96,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * Finds and returns the FIRST order record whose status equals to the supplied value
-     * 
+     *
      * The default order is based on primary key (Order.orderNumber) in ascending order!
-     * 
+     *
      * @param status  status value that order must have
      * @return        Order object of the found entity
      */
@@ -106,7 +106,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * Finds and returns the LAST order record whose status equals to the supplied value
-     * 
+     *
      * @param status  status value that order must have
      * @return        Order object of the found entity
      */
@@ -114,9 +114,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * Finds and returns the first five order records whose status equals to the supplied value
-     * 
+     *
      * The default order is based on primary key (Order.orderNumber) in ascending order!
-     * 
+     *
      * @param status  status value that order must have
      * @return        List<Order> with maximum 5 Order object
      */
@@ -124,9 +124,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * Finds and returns the first ten order records whose status equals to the supplied value
-     * 
+     *
      * The default order is based on primary key (Order.orderNumber) in ascending order!
-     * 
+     *
      * @param status  status value that order must have
      * @return        List<Order> with maximum 10 Order object
      */
